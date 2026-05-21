@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TypeForge — Speed Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#111118;--border:#1e1e2e;
+  --accent:#f0c040;--accent2:#ff6b6b;--accent3:#6be5ff;
+  --text:#e8e8f0;--muted:#5a5a78;
+  --correct:#4ade80;--wrong:#f87171;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Space Mono',monospace;
+  min-height:100vh;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(240,192,64,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(240,192,64,.04) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none;z-index:0;
+}
+.orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;animation:floatOrb 10s ease-in-out infinite}
+.orb1{width:500px;height:500px;background:rgba(240,192,64,.06);top:-150px;left:-150px}
+.orb2{width:400px;height:400px;background:rgba(107,229,255,.05);bottom:-120px;right:-120px;animation-delay:-5s}
+@keyframes floatOrb{0%,100%{transform:translateY(0)}50%{transform:translateY(-40px)}}
+
+#app{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:36px 24px 80px}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:44px;animation:slideDown .6s cubic-bezier(.16,1,.3,1) both}
+@keyframes slideDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.7rem;letter-spacing:-.03em}
+.logo span{color:var(--accent)}
+.tagline{font-size:.68rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--border);padding:5px 14px;border-radius:20px}
+
+/* MODE SELECTOR */
+.modes{display:flex;gap:10px;margin-bottom:24px;animation:slideDown .6s .08s cubic-bezier(.16,1,.3,1) both}
+.mode-btn{
+  flex:1;padding:10px 0;background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);font-family:'Space Mono',monospace;font-size:.72rem;
+  letter-spacing:.08em;text-transform:uppercase;border-radius:8px;cursor:pointer;transition:all .2s
+}
+.mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#0a0a0f;font-weight:700}
+
+/* STATS */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;animation:slideDown .6s .15s cubic-bezier(.16,1,.3,1) both}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;transition:border-color .3s}
+.stat:hover{border-color:rgba(240,192,64,.3)}
+.stat-label{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.stat-value{font-family:'Syne',sans-serif;font-size:1.9rem;font-weight:800;color:var(--accent);line-height:1;transition:all .3s}
+.stat-unit{font-size:.6rem;color:var(--muted);margin-top:3px}
+
+/* TIMER BAR */
+.timer-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin-bottom:24px;overflow:hidden}
+#timer-bar{height:100%;width:100%;background:var(--accent);border-radius:2px;transition:width .1s linear,background .3s}
+
+/* WORDS BOX */
+.words-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 30px;margin-bottom:16px;animation:slideDown .6s .22s cubic-bezier(.16,1,.3,1) both;position:relative;overflow:hidden}
+.words-section::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(240,192,64,.02),transparent 60%);pointer-events:none}
+.words-label{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px}
+
+#words-display{
+  font-size:1.12rem;line-height:2.1;letter-spacing:.025em;
+  user-select:none;min-height:90px;max-height:130px;overflow:hidden;position:relative;
+}
+.word{display:inline;margin-right:0}
+.char{position:relative;transition:color .08s}
+.char.correct{color:var(--correct)}
+.char.wrong{color:var(--wrong);text-decoration:underline;text-underline-offset:3px}
+.char.cursor::before{
+  content:'';position:absolute;left:0;top:4px;bottom:4px;
+  width:2px;background:var(--accent);border-radius:2px;
+  animation:blink .85s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── VISIBLE INPUT AREA ── */
+.input-section{
+  margin-bottom:20px;
+  animation:slideDown .6s .28s cubic-bezier(.16,1,.3,1) both;
+}
+.input-label{
+  font-size:.6rem;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.12em;margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.input-label::after{
+  content:'';flex:1;height:1px;background:var(--border);
+}
+#typing-input{
+  width:100%;
+  background:var(--surface);
+  border:2px solid var(--border);
+  border-radius:12px;
+  color:var(--text);
+  font-family:'Space Mono',monospace;
+  font-size:1rem;
+  padding:16px 20px;
+  outline:none;
+  transition:border-color .2s,box-shadow .2s;
+  caret-color:var(--accent);
+  letter-spacing:.04em;
+}
+#typing-input::placeholder{color:var(--muted);font-size:.85rem}
+#typing-input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(240,192,64,.1);
+}
+#typing-input:disabled{
+  opacity:.4;cursor:not-allowed;
+}
+
+/* CONTROLS */
+.controls{display:flex;justify-content:center;gap:14px;margin-bottom:40px;animation:slideDown .6s .34s cubic-bezier(.16,1,.3,1) both}
+.btn{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 28px;border-radius:10px;
+  font-family:'Space Mono',monospace;font-size:.78rem;
+  font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  cursor:pointer;border:none;transition:all .2s;
+}
+.btn-primary{background:var(--accent);color:#0a0a0f}
+.btn-primary:hover{background:#ffd060;transform:translateY(-2px);box-shadow:0 8px 24px rgba(240,192,64,.3)}
+.btn-primary:active{transform:translateY(0)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* RESULT */
+#result{
+  display:none;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:44px 36px;
+  text-align:center;position:relative;overflow:hidden;margin-bottom:32px;
+  animation:popIn .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes popIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+#result::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0,rgba(240,192,64,.1),transparent 70%);pointer-events:none}
+.result-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px}
+.result-wpm{font-family:'Syne',sans-serif;font-size:5rem;font-weight:800;color:var(--accent);line-height:1;margin-bottom:4px}
+.result-sub{font-size:.72rem;color:var(--muted);letter-spacing:.08em;margin-bottom:28px}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px}
+.rstat{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:18px}
+.rstat-val{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;margin-bottom:4px}
+.rstat-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.green{color:var(--correct)}.red{color:var(--wrong)}.blue{color:var(--accent3)}
+
+/* HISTORY */
+.history{animation:slideDown .6s .4s cubic-bezier(.16,1,.3,1) both}
+.history-title{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:11px 18px;font-size:.75rem;
+  animation:slideIn .3s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.hwpm{color:var(--accent);font-weight:700;font-family:'Syne',sans-serif;font-size:.95rem}
+.hacc{color:var(--correct)}
+
+/* status dot */
+.status-dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--muted);margin-right:6px;vertical-align:middle;
+  transition:background .3s,box-shadow .3s;
+}
+.status-dot.active{background:var(--correct);box-shadow:0 0 8px var(--correct)}
+.status-dot.danger{background:var(--wrong);box-shadow:0 0 8px var(--wrong)}
+
+@media(max-width:640px){
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .result-grid{grid-template-columns:repeat(2,1fr)}
+  .stat-value{font-size:1.5rem}
+  .result-wpm{font-size:3.5rem}
+  #words-display{font-size:.9rem}
+  .words-section{padding:20px 18px}
+  .modes{flex-wrap:wrap}
+  .mode-btn{flex:none;width:calc(50% - 5px)}
+}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div id="app">
+
+  <header>
+    <div class="logo">Type<span>Forge</span></div>
+    <div class="tagline">Speed Test</div>
+  </header>
+
+  <div class="modes">
+    <button class="mode-btn" data-time="15">15s</button>
+    <button class="mode-btn active" data-time="30">30s</button>
+    <button class="mode-btn" data-time="60">60s</button>
+    <button class="mode-btn" data-time="120">120s</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-label">WPM</div>
+      <div class="stat-value" id="s-wpm">0</div>
+      <div class="stat-unit">words / min</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Accuracy</div>
+      <div class="stat-value" id="s-acc">—</div>
+      <div class="stat-unit">% correct</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Time Left</div>
+      <div class="stat-value" id="s-time">30</div>
+      <div class="stat-unit">seconds</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Streak</div>
+      <div class="stat-value" id="s-streak">0</div>
+      <div class="stat-unit">in a row</div>
+    </div>
+  </div>
+
+  <div class="timer-bar-wrap"><div id="timer-bar"></div></div>
+
+  <!-- Words Display -->
+  <div class="words-section">
+    <div class="words-label">
+      <span class="status-dot" id="status-dot"></span>
+      words to type
+    </div>
+    <div id="words-display"></div>
+  </div>
+
+  <!-- Visible Input -->
+  <div class="input-section">
+    <div class="input-label">type here</div>
+    <input
+      id="typing-input"
+      type="text"
+      placeholder="Start typing to begin the test…"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    />
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" onclick="resetTest()">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Restart
+    </button>
+    <button class="btn btn-ghost" onclick="newWords()">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      New Words
+    </button>
+  </div>
+
+  <div id="result">
+    <div class="result-title">✦ Test Complete ✦</div>
+    <div class="result-wpm" id="r-wpm">0</div>
+    <div class="result-sub">words per minute</div>
+    <div class="result-grid">
+      <div class="rstat"><div class="rstat-val green" id="r-acc">0%</div><div class="rstat-lbl">Accuracy</div></div>
+      <div class="rstat"><div class="rstat-val blue" id="r-chars">0</div><div class="rstat-lbl">Correct Chars</div></div>
+      <div class="rstat"><div class="rstat-val red" id="r-errors">0</div><div class="rstat-lbl">Errors</div></div>
+    </div>
+    <button class="btn btn-primary" style="margin:0 auto" onclick="resetTest()">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Try Again
+    </button>
+  </div>
+
+  <div class="history" id="history-section" style="display:none">
+    <div class="history-title">Recent Results</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+</div>
+<script>
+const WORDS = "the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us ability accept achieve across action actually address affect agree already although among another appear apply argue around become begin believe benefit beyond board bring build business career cause change charge check choice claim clear close common complete condition consider contain continue control correct course create current decide describe develop difference difficult discuss effect effort either employee enough ensure enter entire especially establish evidence example exist experience explain factor fail figure finally follow force form forward found government group happen head hold human identify include increase indeed industry instead interest involve keep kind large lead learn level likely limit local long major manage matter mean meet might mind move must nature need never next offer option order particular past pay percent person place plan play point policy provide public push question quickly rather reach reason receive reduce remain require result role seem serious significant simple since situation small sometimes specific spend staff start state step strong study subject suggest system team through understand unless until usually various wide world house water place city book light music story road friend river tree child school life road family garden sport weather colour flower chair table window door floor wall garden smile heart music dream cloud river mountain forest ocean wave night morning".split(" ");
+
+let words=[], wordEls=[], charEls=[];
+let curWord=0, curChar=0;
+let totalTyped=0, totalErrors=0, correctChars=0, streak=0;
+let timer=null, timeLeft=30, totalTime=30;
+let started=false, finished=false;
+let history=[];
+
+const display = document.getElementById('words-display');
+const inputEl = document.getElementById('typing-input');
+const dot = document.getElementById('status-dot');
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+  return a;
+}
+
+function generateWords(){ return shuffle(WORDS).slice(0,80); }
+
+function buildDisplay(){
+  display.innerHTML='';wordEls=[];charEls=[];
+  words.forEach(word=>{
+    const wEl=document.createElement('span');
+    wEl.className='word';
+    const chars=[];
+    word.split('').forEach(ch=>{
+      const cEl=document.createElement('span');
+      cEl.className='char';
+      cEl.textContent=ch;
+      wEl.appendChild(cEl);
+      chars.push(cEl);
+    });
+    // space
+    const sp=document.createElement('span');
+    sp.className='char';sp.textContent=' ';
+    wEl.appendChild(sp);chars.push(sp);
+    display.appendChild(wEl);
+    wordEls.push(wEl);charEls.push(chars);
+  });
+  setCursor();
+}
+
+function setCursor(){
+  document.querySelectorAll('.char.cursor').forEach(e=>e.classList.remove('cursor'));
+  if(finished)return;
+  const wc=charEls[curWord];if(!wc)return;
+  const idx=Math.min(curChar,wc.length-1);
+  wc[idx].classList.add('cursor');
+  wc[idx].scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+// Input handler
+inputEl.addEventListener('input', e=>{
+  if(finished){inputEl.value='';return;}
+  const val=inputEl.value;
+  if(!val)return;
+
+  if(!started) startTest();
+
+  // handle space = advance word
+  if(val.endsWith(' ')){
+    inputEl.value='';
+    advanceWord();
+    return;
+  }
+
+  // process each new character typed
+  const word=words[curWord];if(!word)return;
+  const chars=charEls[curWord];
+
+  // rebuild from scratch based on full input value
+  const typed=val;
+  // reset all chars in current word
+  word.split('').forEach((_,i)=>{
+    chars[i].classList.remove('correct','wrong');
+  });
+
+  let errs=0;
+  for(let i=0;i<typed.length;i++){
+    if(i>=word.length)break;
+    if(typed[i]===word[i]){
+      chars[i].classList.add('correct');
+    } else {
+      chars[i].classList.add('wrong');
+      errs++;
+    }
+  }
+
+  curChar=typed.length;
+  totalTyped=typed.length;
+  correctChars= [...typed].filter((c,i)=>c===word[i]).length;
+  totalErrors=errs;
+  streak= errs===0 ? typed.length : 0;
+
+  updateLiveStats();
+  setCursor();
+});
+
+inputEl.addEventListener('keydown', e=>{
+  if(finished){
+    if(e.key==='Enter'){resetTest();}
+    return;
+  }
+  if(e.key==='Enter'){e.preventDefault();advanceWord();}
+  if(e.key===' '){e.preventDefault();advanceWord();}
+});
+
+function advanceWord(){
+  if(!started)return;
+  const word=words[curWord];if(!word)return;
+  const chars=charEls[curWord];
+  const typed=inputEl.value.trim();
+
+  // count correct chars for this word
+  let cc=0,err=0;
+  word.split('').forEach((ch,i)=>{
+    if(typed[i]===ch){cc++;chars[i].classList.add('correct');}
+    else{err++;chars[i].classList.add('wrong');}
+  });
+
+  // mark space
+  if(chars[word.length]) chars[word.length].classList.add('correct');
+
+  // global tallies (per-word basis)
+  correctChars+=cc;
+  totalErrors+=err;
+  totalTyped+=typed.length+1;
+
+  inputEl.value='';
+  streak= err===0 ? streak+word.length : 0;
+  curChar=0;
+  curWord++;
+
+  if(curWord>=words.length){endTest();return;}
+  updateLiveStats();
+  setCursor();
+}
+
+function startTest(){
+  started=true;
+  dot.className='status-dot active';
+  inputEl.placeholder='';
+  document.getElementById('s-time').textContent=timeLeft;
+  timer=setInterval(()=>{
+    timeLeft--;
+    document.getElementById('timer-bar').style.width=(timeLeft/totalTime*100)+'%';
+    document.getElementById('s-time').textContent=timeLeft;
+    const elapsed=totalTime-timeLeft;
+    const wpm=elapsed>0?Math.round((correctChars/5)/(elapsed/60)):0;
+    document.getElementById('s-wpm').textContent=wpm;
+    if(timeLeft<=5){
+      document.getElementById('timer-bar').style.background='var(--accent2)';
+      dot.className='status-dot danger';
+    }
+    if(timeLeft<=0)endTest();
+  },1000);
+}
+
+function updateLiveStats(){
+  document.getElementById('s-streak').textContent=streak;
+  const elapsed=totalTime-timeLeft;
+  if(elapsed>0){
+    const wpm=Math.round((correctChars/5)/(elapsed/60));
+    document.getElementById('s-wpm').textContent=wpm;
+  }
+  const acc=totalTyped>0?Math.round(((totalTyped-totalErrors)/totalTyped)*100):0;
+  document.getElementById('s-acc').textContent=acc+'%';
+}
+
+function endTest(){
+  clearInterval(timer);finished=true;started=false;
+  inputEl.disabled=true;
+  inputEl.value='';
+  inputEl.placeholder='Test finished — press Restart to play again';
+  dot.className='status-dot';
+  document.querySelectorAll('.char.cursor').forEach(e=>e.classList.remove('cursor'));
+
+  const elapsed=totalTime-timeLeft||totalTime;
+  const wpm=Math.round((correctChars/5)/(elapsed/60));
+  const acc=totalTyped>0?Math.round(((totalTyped-totalErrors)/totalTyped)*100):0;
+
+  document.getElementById('r-wpm').textContent=wpm;
+  document.getElementById('r-acc').textContent=acc+'%';
+  document.getElementById('r-chars').textContent=correctChars;
+  document.getElementById('r-errors').textContent=totalErrors;
+  document.getElementById('s-wpm').textContent=wpm;
+  document.getElementById('s-acc').textContent=acc+'%';
+
+  const result=document.getElementById('result');
+  result.style.display='block';
+  result.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  const now=new Date();
+  history.unshift({wpm,acc,chars:correctChars,errors:totalErrors,mode:totalTime+'s',time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+  if(history.length>5)history.pop();
+  renderHistory();
+}
+
+function renderHistory(){
+  const section=document.getElementById('history-section');
+  const list=document.getElementById('history-list');
+  if(!history.length){section.style.display='none';return;}
+  section.style.display='block';
+  list.innerHTML='';
+  history.forEach((h,i)=>{
+    const el=document.createElement('div');
+    el.className='history-item';
+    el.style.animationDelay=(i*.05)+'s';
+    el.innerHTML=`<span class="hwpm">${h.wpm} <small style="font-size:.58rem;color:var(--muted)">WPM</small></span><span class="hacc">${h.acc}% acc</span><span style="color:var(--muted);font-size:.7rem">${h.chars} chars · ${h.errors} err</span><span style="color:var(--accent3);font-size:.68rem">${h.mode}</span><span style="color:var(--muted);font-size:.68rem">${h.time}</span>`;
+    list.appendChild(el);
+  });
+}
+
+function resetTest(){
+  clearInterval(timer);
+  started=false;finished=false;
+  curWord=0;curChar=0;totalTyped=0;totalErrors=0;correctChars=0;streak=0;
+  timeLeft=totalTime;
+  document.getElementById('s-wpm').textContent='0';
+  document.getElementById('s-acc').textContent='—';
+  document.getElementById('s-time').textContent=totalTime;
+  document.getElementById('s-streak').textContent='0';
+  document.getElementById('timer-bar').style.width='100%';
+  document.getElementById('timer-bar').style.background='var(--accent)';
+  document.getElementById('result').style.display='none';
+  dot.className='status-dot';
+  inputEl.disabled=false;
+  inputEl.value='';
+  inputEl.placeholder='Start typing to begin the test…';
+  words=generateWords();
+  buildDisplay();
+  inputEl.focus();
+}
+
+function newWords(){ resetTest(); }
+
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    totalTime=parseInt(btn.dataset.time);
+    resetTest();
+  });
+});
+
+// Init
+words=generateWords();
+buildDisplay();
+document.getElementById('s-time').textContent=totalTime;
+inputEl.focus();
+</script>
+</body>
+</html>
